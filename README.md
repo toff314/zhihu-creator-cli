@@ -18,7 +18,7 @@
 |------|------|------|
 | **认证** | Cookie 登录、登出、状态检查 | ✅ |
 | **创作中心** | 文章列表（已发布/草稿）、文章详情 | ✅ |
-| **问题发现** | 问题推荐（个性化）、问题搜索、问题详情、回答列表 | ✅ |
+| **问题发现** | 问题推荐（个性化）、问题搜索、问题详情、回答列表、邀请回答 | ✅ |
 | **Agent 友好** | 所有数据命令支持 `--json` 输出 | ✅ |
 | **网络优化** | 强制 IPv4 连接，避免 IPv6 超时 | ✅ |
 
@@ -86,6 +86,9 @@ zhihu-creator questions detail 302196756
 
 # 查看问题回答
 zhihu-creator questions answers 656013053 --limit 5
+
+# 查看邀请回答列表
+zhihu-creator questions invites --limit 10
 ```
 
 ### 4. Agent / 脚本使用（JSON 输出）
@@ -118,6 +121,7 @@ zhihu-creator
 └── questions
     ├── recommend [--offset] [--limit] [--topic] [--json]
     ├── search <keyword> [--offset] [--limit] [--json]
+    ├── invites [--offset] [--limit] [--json]
     ├── detail <question_id> [--json]
     └── answers <question_id> [--offset] [--limit] [--sort] [--json]
 ```
@@ -133,6 +137,7 @@ zhihu-creator
 | `api/v4/search_v3` (问题搜索) | ✅ |
 | `api/v4/questions/{id}/answers` (回答列表) | ✅ |
 | `api/v4/questions/{id}` (问题详情) | ⚠️ 可能返回 403，有 fallback |
+| `api/v4/notifications/v2/recent` (邀请回答列表) | ✅ |
 
 ## 技术说明
 
