@@ -69,7 +69,7 @@ def show_creator_articles(data: dict, json_mode: bool = False) -> None:
             str(article.get("voteup_count", 0)),
             str(article.get("comment_count", 0)),
             str(fav_count),
-            updated_str[:14],
+            updated_str,
         )
 
     console.print(table)
