@@ -14,13 +14,13 @@ from datetime import datetime
 from rich.console import Console
 from rich.table import Table
 
-console = Console()
+console = Console(width=160, force_terminal=True)
 
 
 def _fmt_ts(raw: Any) -> str:
     """Format a timestamp (int/float) to human-readable string."""
     if isinstance(raw, (int, float)) and raw > 1000000000:
-        return datetime.fromtimestamp(raw).strftime("%m-%d %H:%M")
+        return datetime.fromtimestamp(raw).strftime("%Y-%m-%d %H:%M")
     return str(raw)[:16]
 
 
@@ -44,13 +44,14 @@ def show_creator_articles(data: dict, json_mode: bool = False) -> None:
         title="创作中心文章",
         show_header=True,
         header_style="bold magenta",
+        expand=True,
     )
-    table.add_column("ID", style="dim", width=18)
-    table.add_column("标题", width=25)
-    table.add_column("赞", justify="right", width=4)
-    table.add_column("评", justify="right", width=4)
-    table.add_column("藏", justify="right", width=4)
-    table.add_column("时间", width=12)
+    table.add_column("ID", style="dim", width=22)
+    table.add_column("标题", min_width=40)
+    table.add_column("赞", justify="right", width=5)
+    table.add_column("评", justify="right", width=5)
+    table.add_column("藏", justify="right", width=5)
+    table.add_column("时间", width=18)
 
     for item in articles:
         article = item if isinstance(item, dict) else item.get("content", item)
@@ -63,12 +64,12 @@ def show_creator_articles(data: dict, json_mode: bool = False) -> None:
         fav_count = stats.get("favorites", 0)
 
         table.add_row(
-            str(article.get("id", "-"))[:18],
-            article.get("title", "Untitled")[:25],
+            str(article.get("id", "-")),
+            article.get("title", "Untitled"),
             str(article.get("voteup_count", 0)),
             str(article.get("comment_count", 0)),
             str(fav_count),
-            updated_str[:12],
+            updated_str[:14],
         )
 
     console.print(table)
@@ -391,13 +392,13 @@ def show_user_answers(data: dict, json_mode: bool = False) -> None:
         console.print("[yellow]暂无回答[/yellow]")
         return
 
-    table = Table(title="用户回答", show_header=True, header_style="bold magenta", expand=False)
-    table.add_column("ID", style="dim", width=18)
-    table.add_column("问题标题", width=25)
-    table.add_column("赞", justify="right", width=4)
-    table.add_column("评", justify="right", width=4)
-    table.add_column("折", justify="center", width=4)
-    table.add_column("时间", width=12)
+    table = Table(title="用户回答", show_header=True, header_style="bold magenta", expand=True)
+    table.add_column("ID", style="dim", width=22)
+    table.add_column("问题标题", min_width=40)
+    table.add_column("赞", justify="right", width=5)
+    table.add_column("评", justify="right", width=5)
+    table.add_column("折", justify="center", width=5)
+    table.add_column("时间", width=18)
 
     collapsed_count = 0
     for item in answers:
@@ -410,11 +411,11 @@ def show_user_answers(data: dict, json_mode: bool = False) -> None:
             collapsed_str = "[green]否[/green]"
         table.add_row(
             str(item.get("id", "-")),
-            question.get("title", "-")[:25],
+            question.get("title", "-"),
             str(item.get("voteup_count", 0)),
             str(item.get("comment_count", 0)),
             collapsed_str,
-            _fmt_ts(item.get("created_time", ""))[:12],
+            _fmt_ts(item.get("created_time", "")),
         )
 
     console.print(table)
