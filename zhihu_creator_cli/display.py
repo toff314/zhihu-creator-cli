@@ -45,36 +45,30 @@ def show_creator_articles(data: dict, json_mode: bool = False) -> None:
         show_header=True,
         header_style="bold magenta",
     )
-    table.add_column("ID", style="dim", no_wrap=True, width=20)
-    table.add_column("标题", min_width=30)
-    table.add_column("状态", width=8)
-    table.add_column("赞同", justify="right", width=6)
-    table.add_column("评论", justify="right", width=6)
-    table.add_column("阅读", justify="right", width=8)
-    table.add_column("更新时间", width=16)
+    table.add_column("ID", style="dim", width=18)
+    table.add_column("标题", width=25)
+    table.add_column("赞", justify="right", width=4)
+    table.add_column("评", justify="right", width=4)
+    table.add_column("藏", justify="right", width=4)
+    table.add_column("时间", width=12)
 
     for item in articles:
         article = item if isinstance(item, dict) else item.get("content", item)
-        # API returns "state" (published/draft), not "publish_status"
-        status = article.get("state", article.get("publish_status", "unknown"))
-        status_style = {"published": "green", "draft": "yellow"}.get(status, "white")
 
-        # Format Unix timestamp from "updated" field
         updated_raw = article.get("updated", article.get("updated_time", ""))
         updated_str = _fmt_ts(updated_raw) if updated_raw else ""
 
-        # visit_count may not exist in this endpoint
-        visit_count = article.get("visit_count")
-        visit_str = str(visit_count) if visit_count is not None else "-"
+        reaction = article.get("reaction", {})
+        stats = reaction.get("statistics", {})
+        fav_count = stats.get("favorites", 0)
 
         table.add_row(
-            str(article.get("id", "-")),
-            article.get("title", "Untitled")[:50],
-            f"[{status_style}]{status}[/{status_style}]",
-            str(article.get("voteup_count", "-")),
-            str(article.get("comment_count", "-")),
-            visit_str,
-            updated_str,
+            str(article.get("id", "-"))[:18],
+            article.get("title", "Untitled")[:25],
+            str(article.get("voteup_count", 0)),
+            str(article.get("comment_count", 0)),
+            str(fav_count),
+            updated_str[:12],
         )
 
     console.print(table)

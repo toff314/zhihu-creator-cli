@@ -107,7 +107,7 @@ class ZhihuClient:
 
         url = f"{ZHIHU_API_V4}/members/{url_token}/articles"
         params: dict[str, Any] = {
-            "include": "data[*].title,excerpt,created_time,updated_time,voteup_count,comment_count",
+            "include": "data[*].title,excerpt,created_time,updated_time,voteup_count,comment_count,reaction.statistics",
             "offset": offset,
             "limit": limit,
             "sort_by": sort,
