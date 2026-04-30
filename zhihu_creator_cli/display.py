@@ -209,6 +209,8 @@ def show_invite_questions(data: dict, json_mode: bool = False) -> None:
         console.print("[yellow]No invite notifications found.[/yellow]")
         return
 
+    has_answered_field = any(i.get("is_answered") is not None for i in invites)
+
     table = Table(
         title="邀请回答",
         show_header=True,
@@ -217,6 +219,9 @@ def show_invite_questions(data: dict, json_mode: bool = False) -> None:
     table.add_column("问题ID", style="dim", no_wrap=True, width=20)
     table.add_column("标题", min_width=40)
     table.add_column("邀请者", width=16)
+    table.add_column("邀请时间", width=18)
+    if has_answered_field:
+        table.add_column("已回答", width=6)
     table.add_column("类型", width=12)
     table.add_column("状态", width=6)
 
@@ -224,14 +229,21 @@ def show_invite_questions(data: dict, json_mode: bool = False) -> None:
         q = item.get("question", {})
         is_read = item.get("is_read", True)
         status = "[dim]已读[/dim]" if is_read else "[bold green]未读[/bold green]"
+        invite_time = item.get("invite_time", 0)
+        time_str = _fmt_ts(invite_time) if invite_time else "-"
 
-        table.add_row(
+        row = [
             str(q.get("id", "-")),
             q.get("title", "Untitled")[:60],
             item.get("inviter_name", "-"),
-            item.get("verb", "-"),
-            status,
-        )
+            time_str,
+        ]
+        if has_answered_field:
+            is_answered = item.get("is_answered", False)
+            answered_str = "[green]是[/green]" if is_answered else "[yellow]否[/yellow]"
+            row.append(answered_str)
+        row.extend([item.get("verb", "-"), status])
+        table.add_row(*row)
 
     console.print(table)
     console.print(f"\nTotal: {len(invites)} invites")

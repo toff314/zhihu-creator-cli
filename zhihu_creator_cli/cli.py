@@ -284,7 +284,14 @@ def recommend_questions(offset: int, limit: int, topic_id: str | None, json_mode
 
 @questions_group.command(name="invites")
 @common_options
-def invite_questions(offset: int, limit: int, json_mode: bool) -> None:
+@click.option(
+    "--answered",
+    "answered_filter",
+    default="all",
+    type=click.Choice(["all", "yes", "no"]),
+    help="Filter by answered status: all, yes (已回答), no (未回答).",
+)
+def invite_questions(offset: int, limit: int, answered_filter: str, json_mode: bool) -> None:
     """Get questions invited to you (邀请回答列表).
 
     Fetches notifications of type ``邀请你回答问题`` and
@@ -293,10 +300,23 @@ def invite_questions(offset: int, limit: int, json_mode: bool) -> None:
     Example::
 
         zhihu-creator questions invites --limit 10
+        zhihu-creator questions invites --answered no  # Only unanswered
+        zhihu-creator questions invites --answered yes  # Only answered
     """
     with _get_client() as client:
         try:
-            data = client.get_invite_notifications(offset=offset, limit=limit)
+            check_answered = answered_filter != "all"
+            data = client.get_invite_notifications(
+                offset=offset, limit=limit, check_answered=check_answered
+            )
+            if answered_filter != "all":
+                invites = data.get("data", [])
+                if answered_filter == "yes":
+                    filtered = [i for i in invites if i.get("is_answered", False)]
+                else:
+                    filtered = [i for i in invites if not i.get("is_answered", False)]
+                data["data"] = filtered
+                data["paging"]["totals"] = len(filtered)
             show_invite_questions(data, json_mode)
         except DataFetchError as e:
             show_error(str(e))

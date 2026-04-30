@@ -314,6 +314,7 @@ class ZhihuClient:
         self,
         offset: int = 0,
         limit: int = 20,
+        check_answered: bool = False,
     ) -> dict:
         """Fetch question invite notifications for the logged-in user.
 
@@ -340,6 +341,16 @@ class ZhihuClient:
         invites = []
         INVITE_VERBS = {" 邀请你回答问题", " 的提问等你来答"}
 
+        answered_ids: set[str] = set()
+        if check_answered:
+            me = self._get(f"{ZHIHU_API_V4}/me")
+            my_url_token = me.get("url_token", "")
+            if my_url_token:
+                user_answers = self.get_user_answers(my_url_token, limit=100)
+                answered_ids = {
+                    str(a.get("question", {}).get("id", "")) for a in user_answers.get("data", [])
+                }
+
         for item in result.get("data", []):
             content = item.get("content", {})
             verb = content.get("verb", "")
@@ -353,16 +364,21 @@ class ZhihuClient:
             actors = content.get("actors", [])
             inviter = actors[0] if actors else {}
 
-            invites.append(
-                {
-                    "question": target,
-                    "inviter_name": inviter.get("name", ""),
-                    "inviter_url_token": inviter.get("url_token", ""),
-                    "verb": verb.strip(),
-                    "is_read": item.get("is_read", True),
-                    "merge_count": item.get("merge_count", 1),
-                }
-            )
+            invite_item = {
+                "question": target,
+                "inviter_name": inviter.get("name", ""),
+                "inviter_url_token": inviter.get("url_token", ""),
+                "verb": verb.strip(),
+                "is_read": item.get("is_read", True),
+                "merge_count": item.get("merge_count", 1),
+                "invite_time": item.get("create_time", 0),
+            }
+
+            if check_answered:
+                question_id = str(target.get("id", ""))
+                invite_item["is_answered"] = question_id in answered_ids
+
+            invites.append(invite_item)
 
         return {
             "data": invites,
