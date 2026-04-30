@@ -438,17 +438,26 @@ def user_articles(url_token: str, offset: int, limit: int, sort_by: str, json_mo
 @click.option(
     "--sort", "sort_by", default="created", type=click.Choice(["created", "updated", "voteups"])
 )
+@click.option("--collapsed", is_flag=True, help="Filter collapsed answers only.")
 @click.argument("url_token")
-def user_answers(url_token: str, offset: int, limit: int, sort_by: str, json_mode: bool) -> None:
+def user_answers(
+    url_token: str, offset: int, limit: int, sort_by: str, collapsed: bool, json_mode: bool
+) -> None:
     """Get answers by a user.
 
     Example::
 
         zhihu-creator users answers toff314 --limit 10
+        zhihu-creator users answers toff314 --collapsed  # Only collapsed
     """
     with _get_client() as client:
         try:
             data = client.get_user_answers(url_token, offset, limit, sort_by)
+            if collapsed and not json_mode:
+                answers = data.get("data", [])
+                filtered = [a for a in answers if a.get("is_collapsed", False)]
+                data["data"] = filtered
+                data["paging"]["totals"] = len(filtered)
             show_user_answers(data, json_mode)
         except DataFetchError as e:
             show_error(str(e))

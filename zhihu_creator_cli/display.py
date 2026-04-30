@@ -20,7 +20,7 @@ console = Console()
 def _fmt_ts(raw: Any) -> str:
     """Format a timestamp (int/float) to human-readable string."""
     if isinstance(raw, (int, float)) and raw > 1000000000:
-        return datetime.fromtimestamp(raw).strftime("%Y-%m-%d %H:%M")
+        return datetime.fromtimestamp(raw).strftime("%m-%d %H:%M")
     return str(raw)[:16]
 
 
@@ -397,26 +397,39 @@ def show_user_answers(data: dict, json_mode: bool = False) -> None:
         console.print("[yellow]暂无回答[/yellow]")
         return
 
-    table = Table(title="用户回答", show_header=True, header_style="bold magenta")
-    table.add_column("ID", style="dim", width=20)
-    table.add_column("问题标题", min_width=40)
-    table.add_column("赞同", justify="right", width=6)
-    table.add_column("评论", justify="right", width=6)
-    table.add_column("创建时间", width=16)
+    table = Table(title="用户回答", show_header=True, header_style="bold magenta", expand=False)
+    table.add_column("ID", style="dim", width=18)
+    table.add_column("问题标题", width=25)
+    table.add_column("赞", justify="right", width=4)
+    table.add_column("评", justify="right", width=4)
+    table.add_column("折", justify="center", width=4)
+    table.add_column("时间", width=12)
 
+    collapsed_count = 0
     for item in answers:
         question = item.get("question", {})
+        is_collapsed = item.get("is_collapsed", False)
+        if is_collapsed:
+            collapsed_count += 1
+            collapsed_str = "[red]是[/red]"
+        else:
+            collapsed_str = "[green]否[/green]"
         table.add_row(
             str(item.get("id", "-")),
-            question.get("title", "-")[:50],
+            question.get("title", "-")[:25],
             str(item.get("voteup_count", 0)),
             str(item.get("comment_count", 0)),
-            _fmt_ts(item.get("created_time", "")),
+            collapsed_str,
+            _fmt_ts(item.get("created_time", ""))[:12],
         )
 
     console.print(table)
     paging = data.get("paging", {})
-    console.print(f"\nTotal: {paging.get('totals', len(answers))} answers")
+    total = paging.get("totals", len(answers))
+    if collapsed_count > 0:
+        console.print(f"\nTotal: {total} answers, [red]{collapsed_count} collapsed[/red]")
+    else:
+        console.print(f"\nTotal: {total} answers")
 
 
 def show_user_questions(data: dict, json_mode: bool = False) -> None:
