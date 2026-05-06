@@ -236,7 +236,7 @@ def article_detail(article_id: str, json_mode: bool) -> None:
             if json_mode:
                 import json as _json
 
-                show_info(_json.dumps(data, ensure_ascii=False, indent=2))
+                click.echo(_json.dumps(data, ensure_ascii=False))
             else:
                 from rich.console import Console
 
@@ -383,7 +383,7 @@ def question_answers(
             if json_mode:
                 import json as _json
 
-                show_info(_json.dumps(data, ensure_ascii=False, indent=2))
+                click.echo(_json.dumps(data, ensure_ascii=False))
             else:
                 from rich.console import Console
 

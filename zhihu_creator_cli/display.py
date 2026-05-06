@@ -11,6 +11,8 @@ import re
 from datetime import datetime
 from typing import Any
 
+import sys
+
 from rich.console import Console
 from rich.table import Table
 
@@ -26,7 +28,8 @@ def _fmt_ts(raw: Any) -> str:
 
 def _json_out(data: Any) -> None:
     """Print compact JSON for --json mode."""
-    console.print(json.dumps(data, ensure_ascii=False, indent=None))
+    sys.stdout.write(json.dumps(data, ensure_ascii=False, indent=None))
+    sys.stdout.write("\n")
 
 
 def show_creator_articles(data: dict, json_mode: bool = False) -> None:
