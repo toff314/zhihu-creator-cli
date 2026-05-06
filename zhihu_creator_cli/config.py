@@ -15,12 +15,14 @@ CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 os.chmod(CONFIG_DIR, 0o700)
 
 # API Endpoints
+ZHIHU_API = "https://api.zhihu.com"
 ZHIHU_API_V4 = "https://www.zhihu.com/api/v4"
 ZHIHU_CONTENT_DRAFTS_URL = "https://www.zhihu.com/api/content/drafts"
 ZHIHU_CONTENT_PUBLISH_URL = "https://www.zhihu.com/api/content/publish"
 ZHIHU_IMAGE_API = "https://www.zhihu.com/api/v4/images"
 ZHIHU_OSS_UPLOAD_URL = "https://picx.galgamer.eu.org"
 ZHIHU_ZHUANLAN_API = "https://zhuanlan.zhihu.com/api/articles"
+ZHIHU_COLUMN_API = "https://zhuanlan.zhihu.com/api/columns"
 ZHIHU_CREATOR_API = "https://www.zhihu.com/api/v4/creator"
 ZHIHU_CREATOR_HOME_API = "https://www.zhihu.com/creator/api/v1"
 ZHIHU_ANSWER_API = "https://www.zhihu.com/api/v4/answers"
@@ -28,6 +30,7 @@ ZHIHU_ANSWER_API = "https://www.zhihu.com/api/v4/answers"
 # Request settings
 DEFAULT_TIMEOUT = 15
 CHROME_VERSION = "124"
+
 
 # Browser fingerprint headers (consistent across all requests)
 def get_browser_headers() -> dict[str, str]:

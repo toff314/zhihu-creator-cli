@@ -3,8 +3,6 @@
 Works around IPv6 connectivity issues by binding to 0.0.0.0 (IPv4 only).
 """
 
-import socket
-
 from requests.adapters import HTTPAdapter
 from urllib3.poolmanager import PoolManager
 

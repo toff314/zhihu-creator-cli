@@ -16,7 +16,9 @@ import requests
 from .adapters import ForceIPv4Adapter
 from .config import (
     DEFAULT_TIMEOUT,
+    ZHIHU_API,
     ZHIHU_API_V4,
+    ZHIHU_COLUMN_API,
     ZHIHU_ZHUANLAN_API,
     get_browser_headers,
 )
@@ -597,3 +599,139 @@ class ZhihuClient:
         headers.pop("x-requested-with", None)
         resp = self._session.get(url, params=params, headers=headers, timeout=DEFAULT_TIMEOUT)
         return self._handle_response(resp, url)
+
+    # ============================================================
+    #  7. Columns (专栏)
+    # ============================================================
+
+    def get_user_columns(self) -> dict:
+        """Get logged-in user's columns (我的专栏列表).
+
+        Uses search API to find columns by user's url_token,
+        then filters by author to ensure ownership.
+        """
+        me = self._get(f"{ZHIHU_API_V4}/me")
+        url_token = me.get("url_token", "")
+        if not url_token:
+            raise DataFetchError("Cannot get user url_token")
+
+        url = f"{ZHIHU_API_V4}/search_v3"
+        params = {
+            "t": "column",
+            "q": url_token,
+            "correction": 1,
+            "limit": 50,
+            "filter_fields": "lc_idx",
+            "lc_idx": 0,
+            "show_all_topics": 0,
+            "search_source": "Normal",
+        }
+        headers = dict(self._session.headers)
+        headers.pop("x-requested-with", None)
+        resp = self._session.get(url, params=params, headers=headers, timeout=DEFAULT_TIMEOUT)
+        data = self._handle_response(resp, url)
+
+        user_columns = []
+        for item in data.get("data", []):
+            obj = item.get("object", item)
+            if obj.get("type") != "column":
+                continue
+            author = obj.get("author", {})
+            if author.get("url_token") == url_token:
+                user_columns.append(obj)
+
+        return {
+            "data": user_columns,
+            "paging": {
+                "totals": len(user_columns),
+                "is_end": True,
+            },
+        }
+
+    def get_recommended_columns(
+        self,
+        classify: int = 1,
+        offset: int = 0,
+        limit: int = 20,
+    ) -> dict:
+        """Get recommended columns by category (专栏推荐).
+
+        Uses ``https://api.zhihu.com/columns?classify=X``.
+
+        Args:
+            classify: Category ID (1=推荐, 2=生活方式, 4=影视, etc.).
+            offset: Pagination offset.
+            limit: Columns per page.
+        """
+        url = f"{ZHIHU_API}/columns"
+        params = {
+            "classify": classify,
+            "excerpt_len": 75,
+            "offset": offset,
+            "limit": limit,
+        }
+        return self._get(url, params=params)
+
+    def search_columns(
+        self,
+        keyword: str,
+        offset: int = 0,
+        limit: int = 20,
+    ) -> dict:
+        """Search for columns by keyword (搜索专栏).
+
+        Uses ``/api/v4/search_v3?t=column``.
+
+        Args:
+            keyword: Search query.
+            offset: Pagination offset.
+            limit: Results per page.
+        """
+        url = f"{ZHIHU_API_V4}/search_v3"
+        params = {
+            "t": "column",
+            "q": keyword,
+            "correction": 1,
+            "offset": offset,
+            "limit": limit,
+            "filter_fields": "lc_idx",
+            "lc_idx": 0,
+            "show_all_topics": 0,
+            "search_source": "Normal",
+        }
+        headers = dict(self._session.headers)
+        headers.pop("x-requested-with", None)
+        resp = self._session.get(url, params=params, headers=headers, timeout=DEFAULT_TIMEOUT)
+        return self._handle_response(resp, url)
+
+    def get_column_detail(self, slug: str) -> dict:
+        """Get column detail by slug (获取专栏详情).
+
+        Args:
+            slug: Column slug identifier (e.g., 'pythoneer').
+                  Appears in URL as https://zhuanlan.zhihu.com/{slug}.
+        """
+        url = f"{ZHIHU_COLUMN_API}/{slug}"
+        return self._get(url)
+
+    def get_column_articles(
+        self,
+        slug: str,
+        offset: int = 0,
+        limit: int = 20,
+    ) -> dict:
+        """Get articles in a column (获取专栏文章列表).
+
+        Uses ``https://api.zhihu.com/columns/{slug}/articles``.
+
+        Args:
+            slug: Column slug or ID (e.g., 'pythoneer' or 'c_xxx').
+            offset: Pagination offset.
+            limit: Articles per page.
+        """
+        url = f"{ZHIHU_API}/columns/{slug}/articles"
+        params = {
+            "offset": offset,
+            "limit": limit,
+        }
+        return self._get(url, params=params)

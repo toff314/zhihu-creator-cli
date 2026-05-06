@@ -5,15 +5,15 @@ All data commands support ``--json`` for machine-readable output.
 
 import logging
 from functools import wraps
-from typing import Any
 
 import click
 
 from .auth import AuthManager
 from .client import ZhihuClient
-from .config import COOKIES_FILE
 from .display import (
     show_answer_detail,
+    show_column_articles,
+    show_column_detail,
     show_creator_articles,
     show_error,
     show_hot_questions,
@@ -21,11 +21,14 @@ from .display import (
     show_invite_questions,
     show_me,
     show_question_detail,
+    show_recommended_columns,
     show_recommended_questions,
+    show_search_columns,
     show_search_results,
     show_user_answers,
     show_user_articles,
     show_user_collections,
+    show_user_columns,
     show_user_followees,
     show_user_followers,
     show_user_profile,
@@ -617,6 +620,132 @@ def hot_list(limit: int, json_mode: bool) -> None:
         try:
             data = client.get_hot_questions(limit)
             show_hot_questions(data, json_mode)
+        except DataFetchError as e:
+            show_error(str(e))
+            raise click.Abort()
+
+
+# ============================================================
+#  7. Columns commands
+# ============================================================
+
+
+@cli.group(name="columns")
+def columns_group() -> None:
+    """Column (专栏) discovery and detail."""
+    pass
+
+
+@columns_group.command(name="list")
+@require_login
+@common_options
+def list_columns(offset: int, limit: int, json_mode: bool) -> None:
+    """List your columns (我的专栏列表).
+
+    Uses search API and filters by author.
+
+    Example::
+
+        zhihu-creator columns list --limit 10
+    """
+    with _get_client() as client:
+        try:
+            data = client.get_user_columns()
+            show_user_columns(data, json_mode)
+        except DataFetchError as e:
+            show_error(str(e))
+            raise click.Abort()
+
+
+@columns_group.command(name="recommend")
+@common_options
+@click.option(
+    "--classify",
+    default=1,
+    type=click.INT,
+    help="Category ID (1=推荐, 2=生活方式, 4=影视, 5=心理, 7=互联网, etc.)",
+)
+def recommend_columns(offset: int, limit: int, classify: int, json_mode: bool) -> None:
+    """Get recommended columns by category (专栏推荐).
+
+    Classify categories:
+    1=新鲜推荐, 2=生活方式, 4=影视娱乐, 5=心理学,
+    7=互联网, 8=文学, 9=商业, 12=音乐, 13=科学, 16=金融
+
+    Example::
+
+        zhihu-creator columns recommend --classify 7 --limit 10
+    """
+    with _get_client() as client:
+        try:
+            data = client.get_recommended_columns(classify, offset, limit)
+            show_recommended_columns(data, json_mode)
+        except DataFetchError as e:
+            show_error(str(e))
+            raise click.Abort()
+
+
+@columns_group.command(name="search")
+@common_options
+@click.argument("keyword")
+def search_columns(keyword: str, offset: int, limit: int, json_mode: bool) -> None:
+    """Search for columns by keyword (搜索专栏).
+
+    Example::
+
+        zhihu-creator columns search toff314
+        zhihu-creator columns search Python --limit 10
+    """
+    with _get_client() as client:
+        try:
+            data = client.search_columns(keyword, offset, limit)
+            show_search_columns(data, json_mode)
+        except DataFetchError as e:
+            show_error(str(e))
+            raise click.Abort()
+
+
+@columns_group.command(name="detail")
+@json_option
+@click.argument("slug_or_id")
+def column_detail(slug_or_id: str, json_mode: bool) -> None:
+    """Get column detail (获取专栏详情).
+
+    SLUG_OR_ID can be either:
+    - slug: the string after https://zhuanlan.zhihu.com/ (e.g., 'pythoneer')
+    - id: column ID from API (e.g., 'c_2032794954242769616')
+
+    Example::
+
+        zhihu-creator columns detail pythoneer
+        zhihu-creator columns detail c_2032794954242769616
+    """
+    with _get_client() as client:
+        try:
+            data = client.get_column_detail(slug_or_id)
+            show_column_detail(data, json_mode)
+        except DataFetchError as e:
+            show_error(str(e))
+            raise click.Abort()
+
+
+@columns_group.command(name="articles")
+@common_options
+@click.argument("slug_or_id")
+def column_articles(slug_or_id: str, offset: int, limit: int, json_mode: bool) -> None:
+    """Get articles in a column (获取专栏文章列表).
+
+    SLUG_OR_ID can be either slug (e.g., 'pythoneer') or ID (e.g., 'c_xxx').
+
+    Example::
+
+        zhihu-creator columns articles pythoneer --limit 10
+        zhihu-creator columns articles c_2032794954242769616
+    """
+    with _get_client() as client:
+        try:
+            data = client.get_column_articles(slug_or_id, offset, limit)
+            show_column_articles(data, json_mode)
         except DataFetchError as e:
             show_error(str(e))
             raise click.Abort()
