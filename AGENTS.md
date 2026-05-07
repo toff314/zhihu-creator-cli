@@ -260,3 +260,149 @@ zhihu-creator hot list --limit 20
   - `zhihu-python/` — 老版本知乎爬虫，HTML 解析方式
   - `zhihu-api/` — 知乎 API 封装库，有签名加密实现
 - 知乎 Web API：观察浏览器 DevTools Network 请求
+
+## CLI 扩展与重构方案
+
+### 重构目标
+
+1. 保持现有 CLI 使用方式尽量不变
+2. 为新增资源类型提供清晰的一等命令组
+3. 降低 `cli.py`、`client.py`、`display.py` 的膨胀速度
+4. 统一搜索、用户标识解析、列表展示等重复逻辑
+5. 支持后续稳定扩展而不牺牲可维护性
+
+### 当前结构评估
+
+现有结构在已有功能范围内是合理的，但如果继续实现想法、话题、收藏夹、创作中心、全类型搜索、通知等功能，会出现：搜索入口分散、`users` 组过胖、缺少独立顶级组、`url_token`/`user_id` 语义不一致、大文件继续膨胀等问题。
+
+### 推荐的目标命令结构
+
+顶级 group：`auth`, `creator`, `search`, `hot`, `users`, `questions`, `answers`, `articles`, `columns`, `collections`, `topics`, `pins`, `notifications`
+
+### 新增命令（高优先级）
+
+- `creator home`, `creator stats`
+- `search general/questions/answers/articles/columns/topics/people <keyword>`
+- `search top`, `search preset-words`
+- `users pins/activities/following-topics/following-questions <url_token>`
+- `pins detail <pin_id>`
+- `topics detail <topic_id>`
+- `collections detail/contents <collection_id>`
+- `answers comments <answer_id>`
+- `notifications invites/messages`
+
+### 新增命令（中优先级）
+
+- `users columns/mutuals/following-columns/zvideos <url_token>`
+- `questions followers <question_id>`
+- `answers voters <answer_id>`
+- `articles likers <article_id>`
+- `topics unanswered <topic_id>`
+- `comments children <comment_id>` (or `answers comments --children`)
+
+### 新旧命令兼容策略
+
+| 旧命令 | 新命令 | 建议 |
+|------|------|------|
+| `questions search <kw>` | `search questions <kw>` | 保留旧命令，内部转调 |
+| `columns search <kw>` | `search columns <kw>` | 保留旧命令，内部转调 |
+| `questions invites` | `notifications invites` | 保留旧命令，文档主推新命令 |
+| `users collections <user_id>` | `users collections <url_token>` | 新实现兼容两种输入 |
+
+### 推荐目录结构
+
+```text
+zhihu_creator_cli/
+├── cli.py                    # 仅注册根命令
+├── auth.py
+├── config.py
+├── adapters.py
+├── exceptions.py
+├── __init__.py
+├── commands/
+│   ├── __init__.py
+│   ├── auth.py
+│   ├── creator.py
+│   ├── search.py
+│   ├── users.py
+│   ├── questions.py
+│   ├── answers.py
+│   ├── articles.py
+│   ├── columns.py
+│   ├── collections.py
+│   ├── topics.py
+│   ├── pins.py
+│   ├── notifications.py
+│   └── hot.py
+├── client/
+│   ├── __init__.py
+│   ├── base.py
+│   ├── creator.py
+│   ├── search.py
+│   ├── users.py
+│   ├── questions.py
+│   ├── answers.py
+│   ├── articles.py
+│   ├── columns.py
+│   ├── collections.py
+│   ├── topics.py
+│   ├── pins.py
+│   └── notifications.py
+└── display/
+    ├── __init__.py
+    ├── common.py
+    ├── creator.py
+    ├── search.py
+    ├── users.py
+    ├── questions.py
+    ├── answers.py
+    ├── articles.py
+    ├── columns.py
+    ├── collections.py
+    ├── topics.py
+    ├── pins.py
+    ├── notifications.py
+    └── hot.py
+```
+
+### 各层职责
+
+- `cli.py`：仅注册根命令，不承载业务逻辑
+- `commands/*`：参数定义、命令名、错误处理
+- `client/*`：各资源领域 API 调用，复用 base.py 的 session/headers/cookie
+- `display/*`：各资源领域展示逻辑，json_mode 时直接输出 JSON
+
+### 需要抽出的公共能力
+
+1. **统一搜索**: `search(kind, keyword, offset, limit)` 底层方法
+2. **用户标识统一解析**: `resolve_user(url_token_or_id)` 自动补查
+3. **列表展示通用化**: `_json_out`, `_fmt_ts`, `_clean_html`, `_paging_total`, `_show_empty` 放入 `display/common.py`
+
+### 命令命名约定
+
+- 列表用复数名词，详情用 `detail`
+- 搜索统一进 `search` 组
+- 关系类固定命名：`followers/followees/mutuals/following-topics/following-questions/following-columns`
+- "我的创作"进 `creator`，"查看任意用户"进 `users`
+
+### 实施顺序
+
+1. 拆分 `client.py` → `client/`
+2. 拆分 `display.py` → `display/`
+3. 拆分 `cli.py` → `commands/`
+4. 新增 `search` group
+5. 新增 `creator` group
+6. 新增 `pins/topics/collections/notifications` group
+7. 统一用户标识解析
+8. 更新文档与测试
+
+### 风险与注意事项
+
+- 旧命令必须兼容，不能直接删除
+- `users collections` 参数变化需兼容旧用法
+- 评论接口实测可用但需注意风控波动
+- `creator/api/v1` 为新发现接口，稳定性待观察
+
+### 可用 API 端点汇总
+
+详见 `docs/zhihu_api_endpoints.md`，其中实测可用但项目未用的 35 个端点是新增功能的候选来源。
