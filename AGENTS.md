@@ -5,132 +5,189 @@
 ## 项目概述
 
 zhihu-creator-cli 是一个 Agent-native 的知乎创作中心 CLI 工具，专注于内容创作者的日常操作：
-- 创作中心文章管理（列表、详情、评论）
+- 创作中心文章管理（列表、详情）
 - 问题发现（推荐、搜索、详情、回答）
+- 用户信息查询（资料、内容、关注关系、收藏夹）
+- 回答、想法、专栏、收藏夹、话题详情查看
+- 热榜、搜索、通知等辅助功能
 - 所有命令支持 `--json` 输出供程序消费
 
 ## 代码结构
 
 ```
 zhihu_creator_cli/
-├── cli.py          # Click CLI 命令定义（入口）
-├── client.py       # Zhihu API 客户端（HTTP 调用封装）
-├── display.py      # 终端显示逻辑（Rich 表格 + JSON 输出）
-├── auth.py         # 认证管理（Cookie 存储/验证）
-├── config.py       # 配置常量（API 端点、Headers）
-├── adapters.py     # HTTP 适配器（强制 IPv4）
-├── exceptions.py   # 自定义异常
-└── __init__.py     # 版本信息
+├── cli.py              # Click CLI 入口（仅注册根命令和 group）
+├── client/
+│   ├── __init__.py     # ZhihuClient 导出
+│   ├── base.py         # ZhihuClient 基类（session/headers/cookie/_get/_handle）
+│   ├── creator.py      # 创作中心（暂无可用端点）
+│   ├── search.py       # 搜索 Mixin
+│   ├── users.py        # 用户 Mixin
+│   ├── questions.py    # 问题 Mixin
+│   ├── answers.py      # 回答 Mixin
+│   ├── articles.py     # 文章 Mixin
+│   ├── columns.py      # 专栏 Mixin
+│   ├── collections.py  # 收藏夹 Mixin
+│   ├── topics.py       # 话题 Mixin
+│   ├── pins.py         # 想法 Mixin
+│   └── notifications.py # 通知 Mixin
+├── commands/
+│   ├── __init__.py
+│   ├── auth.py         # auth login/status/logout
+│   ├── creator.py      # creator group（暂无子命令）
+│   ├── search.py       # search general/question/answer/article/column/topic/people + top/preset-words
+│   ├── users.py        # users profile/articles/answers/questions/followers/followees/pins/...
+│   ├── questions.py    # questions recommend/search/detail/answers/invites
+│   ├── answers.py      # answers detail/comments
+│   ├── articles.py     # articles list/detail/likers
+│   ├── columns.py      # columns detail/articles/search/recommend
+│   ├── collections.py  # collections detail/contents/answers
+│   ├── topics.py       # topics detail/unanswered
+│   ├── pins.py         # pins detail
+│   ├── notifications.py # notifications invites/messages
+│   └── hot.py          # hot list
+├── display/
+│   ├── __init__.py
+│   ├── common.py       # _json_out, _fmt_ts, _clean_html, _paging_total, _show_empty
+│   ├── creator.py
+│   ├── search.py
+│   ├── users.py
+│   ├── questions.py
+│   ├── answers.py
+│   ├── articles.py
+│   ├── columns.py
+│   ├── collections.py
+│   ├── topics.py
+│   ├── pins.py
+│   ├── notifications.py
+│   └── hot.py
+├── auth.py             # 认证管理（Cookie 存储/验证）
+├── config.py           # 配置常量（API 端点、Headers）
+├── adapters.py         # HTTP 适配器（强制 IPv4）
+├── exceptions.py       # 自定义异常
+└── __init__.py         # 版本信息
 ```
 
 ## 设计原则
 
-### 1. CLI 命令组织（cli.py）
+### 1. 三层分离架构
+
+- `commands/*`：参数定义、命令名、错误处理（Click 框架）
+- `client/*`：各资源领域 API 调用，复用 `base.py` 的 session/headers/cookie
+- `display/*`：各资源领域展示逻辑，`json_mode` 时直接输出 JSON
+
+### 2. CLI 命令组织（commands/）
 
 - 使用 Click 框架的 `@click.group` 组织命令层级
-- 每个模块一个 group：`auth`, `articles`, `questions`
+- 每个资源类型一个顶级 group：`auth`, `articles`, `questions`, `answers`, `users`, `search`, `hot`, `columns`, `collections`, `topics`, `pins`, `notifications`, `creator`
 - 所有数据命令必须支持 `--json` 标志
 - 使用装饰器模式：`@require_login`, `@json_option`, `@common_options`
 
-```python
-@cli.group(name="articles")
-@require_login
-def articles_group() -> None:
-    """创作中心文章管理."""
-    pass
+### 3. API 客户端（client/）
 
-@articles_group.command(name="list")
-@common_options
-@click.option("--status", default="all", type=click.Choice(["all", "published", "draft"]))
-def list_articles(offset: int, limit: int, status: str, sort: str, json_mode: bool) -> None:
-    ...
-```
-
-### 2. API 客户端（client.py）
-
-- `ZhihuClient` 类封装所有 HTTP 调用
+- `ZhihuClient` 类封装所有 HTTP 调用，位于 `client/base.py`
 - 使用 `requests.Session` + `ForceIPv4Adapter` 强制 IPv4
 - 低级方法 `_get()` 处理错误和 JSON 解析
+- `_get_no_xsrf()` 处理不需要 xsrf 的请求（search、feed 等）
 - 每个业务方法返回原始 API dict（不做数据清洗）
+- 各资源领域通过 Mixin 类组织，组合在 `ZhihuClient` 中
 
 ```python
-class ZhihuClient:
+class ZhihuClient(SearchMixin, UsersMixin, QuestionsMixin, ...):
     def __init__(self, cookie_dict: dict[str, str]) -> None:
         self._session = requests.Session()
         self._session.mount("https://", ForceIPv4Adapter())
         ...
-    
-    def _get(self, url: str, **kwargs) -> dict:
-        resp = self._session.get(url, **kwargs)
-        return self._handle_response(resp, url)
 ```
 
-### 3. 显示逻辑（display.py）
+### 4. 显示逻辑（display/）
 
 - 每个显示函数接受 `json_mode: bool` 参数
-- `json_mode=True` 时输出紧凑 JSON
+- `json_mode=True` 时输出紧凑 JSON（`_json_out()`）
 - `json_mode=False` 时使用 Rich 表格美化
-- 时间戳格式化：`_fmt_ts()` 统一处理
+- 公共工具在 `display/common.py`：`_json_out`, `_fmt_ts`, `_clean_html`, `_paging_total`, `_show_empty`
 
-```python
-def show_creator_articles(data: dict, json_mode: bool = False) -> None:
-    if json_mode:
-        _json_out(data)
-        return
-    # Rich 表格输出...
-```
-
-### 4. 异常处理（exceptions.py）
+### 5. 异常处理（exceptions.py）
 
 - `ZhihuCliError` — 基类
 - `LoginError` — 认证失败
 - `DataFetchError` — API 请求失败
-- `PublishError` — 发布操作失败（暂未使用）
 
-### 5. 配置管理（config.py）
+### 6. 配置管理（config.py）
 
-- API 端点常量：`ZHIHU_API_V4`, `ZHIHU_ZHUANLAN_API`
+- API 端点常量：`ZHIHU_API_V4`, `ZHIHU_ZHUANLAN_API`, `ZHIHU_API`
 - 浏览器 Headers：`get_browser_headers()` 返回一致的指纹
 - Cookie 存储路径：`~/.zhihu-creator-cli/cookies.json`
 
-## API 端点
+## 命令一览
 
-| 功能 | 端点 | 状态 |
+| 命令 | 说明 | 状态 |
 |------|------|------|
-| 用户认证 | `/api/v4/me` | ✅ |
-| 文章列表 | `/api/v4/members/{url_token}/articles` | ✅ |
-| 文章详情 | `zhuanlan.zhihu.com/api/articles/{id}` | ✅ |
-| 文章评论 | `/api/v4/articles/{id}/comments` | ⚠️ 待验证 |
-| 问题推荐 | `/api/v3/feed/topstory/recommend` | ✅ |
-| 问题搜索 | `/api/v4/search_v3` | ✅ |
-| 问题详情 | `/api/v4/questions/{id}` | ⚠️ 可能 403 |
-| 问题回答 | `/api/v4/questions/{id}/answers` | ✅ |
-| 邀请回答 | `/api/v4/notifications/v2/recent` | ✅ |
+| `auth login --cookie` | Cookie 登录 | ✅ |
+| `auth status` | 登录状态 | ✅ |
+| `auth logout` | 退出登录 | ✅ |
+| `articles list` | 创作中心文章列表 | ✅ |
+| `articles detail <id>` | 文章详情 | ✅ |
+| `articles likers <id>` | 文章点赞人列表 | ✅ |
+| `questions recommend` | 推荐问题 | ✅ |
+| `questions search <kw>` | 问题搜索 | ✅ |
+| `questions detail <id>` | 问题详情（fallback） | ✅ |
+| `questions answers <id>` | 问题回答列表 | ✅ |
+| `questions invites` | 邀请回答通知 | ✅ |
+| `answers detail <id>` | 回答详情 | ✅ |
+| `answers comments <id>` | 回答评论 | ✅ |
+| `users profile <url_token>` | 用户信息 | ✅ |
+| `users articles <url_token>` | 用户文章列表 | ✅ |
+| `users answers <url_token>` | 用户回答列表 | ✅ |
+| `users questions <url_token>` | 用户提问列表 | ✅ |
+| `users followers <url_token>` | 粉丝列表 | ✅ |
+| `users followees <url_token>` | 关注列表 | ✅ |
+| `users collections <user_id>` | 收藏夹列表 | ✅ |
+| `users pins <url_token>` | 用户想法列表 | ✅ |
+| `users following-topics <url_token>` | 关注的话题 | ✅ |
+| `users following-questions <url_token>` | 关注的问题 | ✅ |
+| `users following-columns <url_token>` | 关注的专栏 | ✅ |
+| `users mutuals <url_token>` | 互相关注 | ✅ |
+| `hot list` | 知乎热榜 | ✅ |
+| `search general <kw>` | 综合搜索 | ✅ |
+| `search questions <kw>` | 问题搜索 | ✅ |
+| `search answers <kw>` | 回答搜索 | ✅ |
+| `search articles <kw>` | 文章搜索 | ✅ |
+| `search columns <kw>` | 专栏搜索 | ✅ |
+| `search topics <kw>` | 话题搜索 | ✅ |
+| `search people <kw>` | 用户搜索 | ✅ |
+| `search top` | 热搜关键词 | ✅ |
+| `search preset-words` | 搜索预设词 | ✅ |
+| `columns detail <slug>` | 专栏详情 | ✅ |
+| `columns articles <slug>` | 专栏文章列表 | ✅ |
+| `columns search <kw>` | 专栏搜索 | ✅ |
+| `columns recommend` | 专栏推荐 | ✅ |
+| `columns followers <slug>` | 专栏关注者 | ✅ |
+| `collections detail <id>` | 收藏夹详情 | ✅ |
+| `collections contents <id>` | 收藏夹内容 | ✅ |
+| `collections answers <id>` | 收藏夹回答 | ✅ |
+| `topics detail <id>` | 话题详情 | ✅ |
+| `topics unanswered <id>` | 话题待答问题 | ✅ |
+| `pins detail <id>` | 想法详情 | ✅ |
+| `notifications invites` | 邀请回答通知 | ✅ |
+| `notifications messages` | 消息通知 | ✅ |
+| `creator` | 创作中心（暂无可用 API） | ❌ |
 
 ## 开发工作流
 
 ### 环境准备
 
 ```bash
-# 创建虚拟环境
 python -m venv .venv
 source .venv/bin/activate
-
-# 安装依赖
-pip install -e .
-
-# 安装开发依赖
 pip install -e ".[dev]"
 ```
 
 ### 代码检查
 
 ```bash
-# Ruff lint + format
 ruff check zhihu_creator_cli/
 ruff format zhihu_creator_cli/
-
-# Type check (mypy)
 mypy zhihu_creator_cli/
 ```
 
@@ -139,32 +196,48 @@ mypy zhihu_creator_cli/
 **重要**：所有功能必须进行自测验证，确保 API 调用可用：
 
 ```bash
-# 1. 登录验证
 zhihu-creator auth login --cookie "z_c0=xxx; _xsrf=yyy; d_c0=zzz"
 zhihu-creator auth status
 
-# 2. 文章功能测试
 zhihu-creator articles list --limit 5
 zhihu-creator articles detail <article_id>
-zhihu-creator articles comments <article_id> --limit 5
+zhihu-creator articles likers <article_id> --limit 5
 
-# 3. 问题功能测试
 zhihu-creator questions recommend --limit 5
 zhihu-creator questions search "Python" --limit 5
 zhihu-creator questions detail <question_id>
 zhihu-creator questions answers <question_id> --limit 5
-zhihu-creator questions invites --limit 5
 
-# 4. JSON 输出验证
+zhihu-creator answers detail <answer_id>
+zhihu-creator answers comments <answer_id> --limit 5
+
+zhihu-creator users profile <url_token>
+zhihu-creator users articles <url_token> --limit 5
+zhihu-creator users followers <url_token> --limit 5
+zhihu-creator users pins <url_token> --limit 5
+zhihu-creator users following-topics <url_token>
+
+zhihu-creator hot list --limit 10
+zhihu-creator search general "Python" --limit 5
+zhihu-creator search top
+
+zhihu-creator columns detail pythoneer
+zhihu-creator columns articles pythoneer --limit 5
+zhihu-creator collections detail <collection_id>
+zhihu-creator topics detail <topic_id>
+zhihu-creator pins detail <pin_id>
+zhihu-creator notifications invites --limit 5
+
+# JSON 输出验证
 zhihu-creator articles list --json --limit 1
-zhihu-creator questions detail <id> --json
+zhihu-creator hot list --json --limit 5
 ```
 
 ### 添加新功能
 
-1. 在 `client.py` 添加 API 方法
-2. 在 `cli.py` 添加命令定义
-3. 在 `display.py` 添加显示函数（如有新格式）
+1. 在 `client/` 对应文件添加 Mixin 方法
+2. 在 `commands/` 对应文件添加命令定义
+3. 在 `display/` 对应文件添加显示函数
 4. 自测验证：运行命令确认 API 可用
 5. 运行 lint + typecheck
 
@@ -178,80 +251,43 @@ zhihu-creator questions detail <id> --json
 
 ## 已知问题
 
-### 1. 文章评论 API 已移除
-
-评论 API 需要动态签名（`x-zse-81` 或 `x-zse-96`），签名有效期短且生成算法复杂。
-功能已移除，如需查看评论请使用浏览器访问文章页面。
-
-### 2. 问题详情 API 需要多重策略
-
-**状态**: ⚠️ 部分可用
+### 1. 问题详情 API 需要多重策略
 
 直接访问 `/api/v4/questions/{id}` 返回 403（错误码 10003）。
 
-当前实现的 fallback 策略：
+当前 fallback 策略：
 1. 尝试直接 API（可能失败）
-2. 从 answers API 获取基本字段（id, title, answer_count 等）
-3. 通过 search API 搜索标题获取 description/detail 字段
+2. 从 answers API 获取基本字段
+3. 通过 search API 搜索标题获取 description
 
-注意：
-- 无回答的问题无法通过 answers API 获取信息
-- 问题详情（detail/description）需要通过搜索 API 获取
-- 搜索 API 返回的 description 包含 HTML 标签，display.py 已做清理
+### 2. 评论 API 部分可用
 
-### 3. 只读限制
+回答评论通过 `/api/v4/answers/{id}/root_comments` 可用，但文章评论需要动态签名已移除。
+
+### 3. 创作中心 API 不可用
+
+`/creator/api/v1/home` 和 `/creator/api/v1/stats/overview` 实测 404，端点不存在。`creator` 命令组暂时保留但无子命令。
+
+### 4. 只读限制
 
 知乎写操作（发布文章/回答）需要动态签名（`x-zst-81`），暂不支持。
-需浏览器自动化工具实现。
-
-## 已添加功能
-
-以下功能已全部实现：
-
-### 用户模块 (`users`)
-
-| 命令 | 说明 |
-|------|------|
-| `users profile <url_token>` | 用户信息 |
-| `users articles <url_token>` | 用户文章列表 |
-| `users answers <url_token>` | 用户回答列表 |
-| `users questions <url_token>` | 用户提问列表 |
-| `users followers <url_token>` | 粉丝列表 |
-| `users followees <url_token>` | 关注列表 |
-| `users collections <user_id>` | 收藏夹列表（注意：使用 user_id，非 url_token） |
-
-### 回答模块 (`answers`)
-
-| 命令 | 说明 |
-|------|------|
-| `answers detail <answer_id>` | 回答详情 |
-
-### 热榜模块 (`hot`)
-
-| 命令 | 说明 |
-|------|------|
-| `hot list [--limit]` | 知乎热榜 |
 
 ## 命令使用示例
 
 ```bash
-# 用户信息
 zhihu-creator users profile toff314
-
-# 用户文章
 zhihu-creator users articles toff314 --limit 10
-
-# 用户回答
-zhihu-creator users answers toff314 --limit 10 --sort voteups
-
-# 用户粉丝
 zhihu-creator users followers toff314 --limit 20
-
-# 回答详情
+zhihu-creator users pins toff314 --limit 5
 zhihu-creator answers detail 29960616
-
-# 热榜
+zhihu-creator answers comments 29960616 --limit 5
 zhihu-creator hot list --limit 20
+zhihu-creator search general "深度学习" --limit 5
+zhihu-creator search top
+zhihu-creator columns detail pythoneer
+zhihu-creator collections detail 158014176
+zhihu-creator topics detail 19740929
+zhihu-creator notifications invites --limit 5
 ```
 
 ## 参考资源
@@ -260,149 +296,8 @@ zhihu-creator hot list --limit 20
   - `zhihu-python/` — 老版本知乎爬虫，HTML 解析方式
   - `zhihu-api/` — 知乎 API 封装库，有签名加密实现
 - 知乎 Web API：观察浏览器 DevTools Network 请求
+- API 端点汇总：`docs/zhihu_api_endpoints.md`
 
-## CLI 扩展与重构方案
+## 可用 API 端点汇总
 
-### 重构目标
-
-1. 保持现有 CLI 使用方式尽量不变
-2. 为新增资源类型提供清晰的一等命令组
-3. 降低 `cli.py`、`client.py`、`display.py` 的膨胀速度
-4. 统一搜索、用户标识解析、列表展示等重复逻辑
-5. 支持后续稳定扩展而不牺牲可维护性
-
-### 当前结构评估
-
-现有结构在已有功能范围内是合理的，但如果继续实现想法、话题、收藏夹、创作中心、全类型搜索、通知等功能，会出现：搜索入口分散、`users` 组过胖、缺少独立顶级组、`url_token`/`user_id` 语义不一致、大文件继续膨胀等问题。
-
-### 推荐的目标命令结构
-
-顶级 group：`auth`, `creator`, `search`, `hot`, `users`, `questions`, `answers`, `articles`, `columns`, `collections`, `topics`, `pins`, `notifications`
-
-### 新增命令（高优先级）
-
-- `creator home`, `creator stats`
-- `search general/questions/answers/articles/columns/topics/people <keyword>`
-- `search top`, `search preset-words`
-- `users pins/activities/following-topics/following-questions <url_token>`
-- `pins detail <pin_id>`
-- `topics detail <topic_id>`
-- `collections detail/contents <collection_id>`
-- `answers comments <answer_id>`
-- `notifications invites/messages`
-
-### 新增命令（中优先级）
-
-- `users columns/mutuals/following-columns/zvideos <url_token>`
-- `questions followers <question_id>`
-- `answers voters <answer_id>`
-- `articles likers <article_id>`
-- `topics unanswered <topic_id>`
-- `comments children <comment_id>` (or `answers comments --children`)
-
-### 新旧命令兼容策略
-
-| 旧命令 | 新命令 | 建议 |
-|------|------|------|
-| `questions search <kw>` | `search questions <kw>` | 保留旧命令，内部转调 |
-| `columns search <kw>` | `search columns <kw>` | 保留旧命令，内部转调 |
-| `questions invites` | `notifications invites` | 保留旧命令，文档主推新命令 |
-| `users collections <user_id>` | `users collections <url_token>` | 新实现兼容两种输入 |
-
-### 推荐目录结构
-
-```text
-zhihu_creator_cli/
-├── cli.py                    # 仅注册根命令
-├── auth.py
-├── config.py
-├── adapters.py
-├── exceptions.py
-├── __init__.py
-├── commands/
-│   ├── __init__.py
-│   ├── auth.py
-│   ├── creator.py
-│   ├── search.py
-│   ├── users.py
-│   ├── questions.py
-│   ├── answers.py
-│   ├── articles.py
-│   ├── columns.py
-│   ├── collections.py
-│   ├── topics.py
-│   ├── pins.py
-│   ├── notifications.py
-│   └── hot.py
-├── client/
-│   ├── __init__.py
-│   ├── base.py
-│   ├── creator.py
-│   ├── search.py
-│   ├── users.py
-│   ├── questions.py
-│   ├── answers.py
-│   ├── articles.py
-│   ├── columns.py
-│   ├── collections.py
-│   ├── topics.py
-│   ├── pins.py
-│   └── notifications.py
-└── display/
-    ├── __init__.py
-    ├── common.py
-    ├── creator.py
-    ├── search.py
-    ├── users.py
-    ├── questions.py
-    ├── answers.py
-    ├── articles.py
-    ├── columns.py
-    ├── collections.py
-    ├── topics.py
-    ├── pins.py
-    ├── notifications.py
-    └── hot.py
-```
-
-### 各层职责
-
-- `cli.py`：仅注册根命令，不承载业务逻辑
-- `commands/*`：参数定义、命令名、错误处理
-- `client/*`：各资源领域 API 调用，复用 base.py 的 session/headers/cookie
-- `display/*`：各资源领域展示逻辑，json_mode 时直接输出 JSON
-
-### 需要抽出的公共能力
-
-1. **统一搜索**: `search(kind, keyword, offset, limit)` 底层方法
-2. **用户标识统一解析**: `resolve_user(url_token_or_id)` 自动补查
-3. **列表展示通用化**: `_json_out`, `_fmt_ts`, `_clean_html`, `_paging_total`, `_show_empty` 放入 `display/common.py`
-
-### 命令命名约定
-
-- 列表用复数名词，详情用 `detail`
-- 搜索统一进 `search` 组
-- 关系类固定命名：`followers/followees/mutuals/following-topics/following-questions/following-columns`
-- "我的创作"进 `creator`，"查看任意用户"进 `users`
-
-### 实施顺序
-
-1. 拆分 `client.py` → `client/`
-2. 拆分 `display.py` → `display/`
-3. 拆分 `cli.py` → `commands/`
-4. 新增 `search` group
-5. 新增 `creator` group
-6. 新增 `pins/topics/collections/notifications` group
-7. 统一用户标识解析
-8. 更新文档与测试
-
-### 风险与注意事项
-
-- 旧命令必须兼容，不能直接删除
-- `users collections` 参数变化需兼容旧用法
-- 评论接口实测可用但需注意风控波动
-- `creator/api/v1` 为新发现接口，稳定性待观察
-
-### 可用 API 端点汇总
-
-详见 `docs/zhihu_api_endpoints.md`，其中实测可用但项目未用的 35 个端点是新增功能的候选来源。
+详见 `docs/zhihu_api_endpoints.md`，当前项目已用端点约 30 个，尚有约 10 个实测可用的端点可新增功能（如 `questions followers`、`articles likers`、`comments child_comments` 等）。

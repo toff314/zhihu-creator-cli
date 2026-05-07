@@ -12,7 +12,7 @@
 | `https://www.zhihu.com/api/v3` | 主站 v3 API（feed、热榜等） |
 | `https://api.zhihu.com` | 独立 API 域名（旧版接口，部分需签名） |
 | `https://zhuanlan.zhihu.com/api` | 专栏 API |
-| `https://www.zhihu.com/creator/api/v1` | 创作中心 v1 API |
+| `https://www.zhihu.com/creator/api/v1` | 创作中心 v1 API（已废弃） |
 | `https://lens.zhihu.com/api/v4` | 视频 API |
 
 ---
@@ -201,8 +201,8 @@
 
 | 端点 | 方法 | 说明 | 可用 | 项目已用 | 来源 |
 |------|------|------|------|----------|------|
-| `/creator/api/v1/home` | GET | 创作中心首页 | ✅ | ✅ | 新发现 |
-| `/creator/api/v1/stats/overview` | GET | 创作数据统计 | ✅ | ✅ | 新发现 |
+| `/creator/api/v1/home` | GET | 创作中心首页 | ❌ (404) | ❌ | BAIGUANGMEI |
+| `/creator/api/v1/stats/overview` | GET | 创作数据统计 | ❌ (404) | ❌ | BAIGUANGMEI |
 | `/api/v4/creator/content_stats` | GET | 创作数据统计(v4) | ❌ (404) | ❌ | BAIGUANGMEI |
 
 ---
@@ -211,6 +211,8 @@
 
 | 端点 | HTTP | 原因 |
 |------|------|------|
+| `/creator/api/v1/home` | 404 | 端点不存在 |
+| `/creator/api/v1/stats/overview` | 404 | 端点不存在 |
 | `/api/v4/questions/{id}` | 403 | 需 x-zse-96 签名 |
 | `/api/v4/articles/{id}` | 403 | 需 x-zse-96 签名 |
 | `/api.zhihu.com/articles/{id}` | 403 | 需签名 |
@@ -251,7 +253,7 @@
 1. **写操作**（POST/DELETE）需要动态签名 `x-zse-81` / `x-zst-81` / `x-zse-96`，当前项目不支持
 2. **403 端点**：问题详情、文章详情(v4)、话题详情(v4)、话题精华/动态均需 `x-zse-96` 签名才能访问
 3. **评论 API** `/api/v4/answers/{id}/root_comments` 实测可用，项目已重新实现
-4. **创作中心** 使用 `creator/api/v1` 域名（`/creator/api/v1/home` 和 `/creator/api/v1/stats/overview`），v4 版已废弃
+4. **创作中心 API** `/creator/api/v1/home` 和 `/creator/api/v1/stats/overview` 实测 404，端点已不存在
 5. `api.zhihu.com` 域名部分接口需要签名，但 `/answers/{id}`、`/pins/{id}`、`/collections/{id}/contents` 等实测可用
 6. **搜索统一化**：所有搜索类型（general/question/answer/article/column/topic/people）通过统一 `search(kind, keyword)` 方法实现
 7. **用户标识统一解析**：`resolve_user_id(url_token)` 自动将 url_token 转换为 user_id，`users collections` 同时兼容两种输入
