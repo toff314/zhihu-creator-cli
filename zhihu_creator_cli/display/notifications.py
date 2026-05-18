@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .common import Table, _fmt_ts, _json_out, _show_empty, console
+from .common import Table, _fmt_ts, _json_out, _show_empty, _type_label, console
 
 
 def show_invite_notifications(data: dict, json_mode: bool = False) -> None:
@@ -55,7 +55,7 @@ def show_message_notifications(data: dict, json_mode: bool = False) -> None:
         status = "[dim]已读[/dim]" if is_read else "[bold green]未读[/bold green]"
         created = item.get("created_time", item.get("created", ""))
         table.add_row(
-            item.get("type", "-")[:12],
+            _type_label(item.get("type")),
             str(content)[:60],
             _fmt_ts(created) if created else "-",
             status,

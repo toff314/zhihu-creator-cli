@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .common import Table, _clean_html, _fmt_ts, _json_out, _paging_total, _show_empty, console
+from .common import Table, _clean_html, _fmt_ts, _json_out, _paging_total, _show_empty, _type_label, console
 
 
 def show_user_profile(user: dict, json_mode: bool = False) -> None:
@@ -273,13 +273,12 @@ def show_user_activities(data: dict, json_mode: bool = False) -> None:
     table.add_column("内容", min_width=40)
     table.add_column("时间", width=16)
     for item in activities:
-        act_type = item.get("type", "-")
         target = item.get("target", {})
         title = target.get("title", "")
         if not title:
             title = _clean_html(target.get("content", ""), 60)
         created = item.get("created_time", "")
-        table.add_row(act_type[:12], title[:60], _fmt_ts(created) if created else "-")
+        table.add_row(_type_label(item.get("type")), title[:60], _fmt_ts(created) if created else "-")
     console.print(table)
     paging = data.get("paging", {})
     _paging_total(len(activities), paging.get("totals", len(activities)), "activities")

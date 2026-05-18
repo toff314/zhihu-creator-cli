@@ -150,6 +150,7 @@
 | `/api.zhihu.com/topics/{id}/feeds/essence` | GET | 话题精华 | ❌ (403) | ❌ | ZhihuVAPI |
 | `/api.zhihu.com/topics/{id}/feeds/top_activity` | GET | 话题动态 | ❌ (403) | ❌ | ZhihuVAPI |
 | `/api.zhihu.com/topics/{id}/unanswered_questions` | GET | 话题待答问题 | ✅ | ✅ | ZhihuVAPI |
+| `/api.zhihu.com/topics/{id}/best_answers` | GET | 话题精华内容（回答+文章） | ✅ | ✅ | 本项目实测 |
 
 ---
 
@@ -166,15 +167,15 @@
 
 | 端点 | 方法 | 说明 | 可用 | 项目已用 | 来源 |
 |------|------|------|------|----------|------|
-| `/api/v4/search_v3?t=general` | GET | 综合搜索 | ✅ | ✅ | niuniuJQKKK |
+| `/api/v4/search_v3?t=general` | GET | 综合搜索（约20条混合结果） | ✅ | ✅ | niuniuJQKKK |
 | `/api/v4/search_v3?t=question` | GET | 问题搜索 | ✅ | ✅ | 本项目 |
-| `/api/v4/search_v3?t=answer` | GET | 回答搜索 | ✅ | ✅ | - |
-| `/api/v4/search_v3?t=article` | GET | 文章搜索 | ✅ | ✅ | - |
 | `/api/v4/search_v3?t=column` | GET | 专栏搜索 | ✅ | ✅ | 本项目 |
 | `/api/v4/search_v3?t=topic` | GET | 话题搜索 | ✅ | ✅ | - |
 | `/api/v4/search_v3?t=people` | GET | 用户搜索 | ✅ | ✅ | - |
 | `/api/v4/search/top_search` | GET | 热搜关键词 | ✅ (有数据) | ✅ | niuniuJQKKK |
 | `/api/v4/search/preset_words` | GET | 搜索预设词 | ✅ (有数据) | ✅ | Foxgeek36 |
+
+> **注意**：`t=answer` 和 `t=article` 独立搜索返回空数据，已移除对应命令。`general` 搜索返回约20条混合结果，适合快速预览，专注搜索请使用 `questions`/`columns`/`topics`/`people`。
 
 ---
 
@@ -244,7 +245,7 @@
 | 7 | `/api.zhihu.com/collections/{id}/followees` | 收藏夹关注者 | ❌ (404) | - |
 | 8 | `/api.zhihu.com/comments/{id}/child_comments` | 子评论 | `comments children` 或 `answers comments --children` | 中 |
 | 9 | `/api.zhihu.com/settings/blocked_users` | 屏蔽用户列表 | `settings blocked-users` | 低 |
-| 10 | `/zhuanlan.zhihu.com/api/columns/{slug}/articles` | 专栏文章(zhuanlan) | 已有替代 | 低 |
+| 10 | `/api.zhihu.com/topics/{id}/best_answers` | 话题精华内容 | `topics essence` | ✅ 已实现 | 高 |
 
 ---
 

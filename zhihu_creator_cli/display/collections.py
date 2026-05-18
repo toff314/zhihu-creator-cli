@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .common import Table, _clean_html, _fmt_ts, _json_out, _paging_total, _show_empty, console
+from .common import Table, _clean_html, _fmt_ts, _json_out, _paging_total, _show_empty, _type_label, console
 
 
 def show_collection_detail(collection: dict, json_mode: bool = False) -> None:
@@ -47,14 +47,13 @@ def show_collection_contents(data: dict, json_mode: bool = False) -> None:
     table.add_column("赞", justify="right", width=5)
     for item in contents:
         content = item.get("content", item)
-        content_type = content.get("type", "-")
         author = content.get("author", {})
         title = content.get("title", "")
         if not title:
             q = content.get("question", {})
             title = q.get("title", "-")
         table.add_row(
-            content_type[:10],
+            _type_label(content.get("type")),
             str(content.get("id", "-")),
             title[:50],
             author.get("name", "-"),

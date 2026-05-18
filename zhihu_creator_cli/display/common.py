@@ -34,6 +34,28 @@ def _show_empty(label: str = "数据") -> None:
     console.print(f"[yellow]暂无{label}[/yellow]")
 
 
+_TYPE_LABELS: dict[str, str] = {
+    "answer": "回答",
+    "article": "文章",
+    "question": "问题",
+    "pin": "想法",
+    "column": "专栏",
+    "collection": "收藏夹",
+    "topic": "话题",
+    "zvideo": "视频",
+    "people": "用户",
+    "feed_advert": "广告",
+    "hot_list_feed": "热榜",
+    "hot_list_feed_advert": "广告",
+}
+
+
+def _type_label(raw_type: str | None) -> str:
+    if not raw_type:
+        return "-"
+    return _TYPE_LABELS.get(raw_type, raw_type)
+
+
 def _paging_total(count: int, total: Any, label: str = "items") -> None:
     console.print(f"\nTotal: {total} {label}")
 

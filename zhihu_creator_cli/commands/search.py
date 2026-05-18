@@ -1,5 +1,4 @@
-"""Search commands: general, questions, answers, articles, columns,
-topics, people, top, preset-words."""
+"""Search commands: general, questions, columns, topics, people, top, preset-words."""
 
 import click
 
@@ -19,11 +18,11 @@ def search_group() -> None:
 @h.common_options
 @click.argument("keyword")
 def search_general(keyword: str, offset: int, limit: int, json_mode: bool) -> None:
-    """Search all content types (综合搜索).
+    """Search all content types (综合搜索，约20条混合结果).
 
     Example::
 
-        zhihu-creator search general "Python" --limit 10
+        zhihu-creator search general "Python" --limit 20
     """
     with h._get_client() as client:
         try:
@@ -48,44 +47,6 @@ def search_questions(keyword: str, offset: int, limit: int, json_mode: bool) -> 
         try:
             data = client.search("question", keyword, offset=offset, limit=limit)
             show_search_results_unified(data, "question", json_mode)
-        except DataFetchError as e:
-            show_error(str(e))
-            raise click.Abort() from None
-
-
-@search_group.command(name="answers")
-@h.common_options
-@click.argument("keyword")
-def search_answers(keyword: str, offset: int, limit: int, json_mode: bool) -> None:
-    """Search for answers (回答搜索).
-
-    Example::
-
-        zhihu-creator search answers "Python" --limit 10
-    """
-    with h._get_client() as client:
-        try:
-            data = client.search("answer", keyword, offset=offset, limit=limit)
-            show_search_results_unified(data, "answer", json_mode)
-        except DataFetchError as e:
-            show_error(str(e))
-            raise click.Abort() from None
-
-
-@search_group.command(name="articles")
-@h.common_options
-@click.argument("keyword")
-def search_articles(keyword: str, offset: int, limit: int, json_mode: bool) -> None:
-    """Search for articles (文章搜索).
-
-    Example::
-
-        zhihu-creator search articles "深度学习" --limit 10
-    """
-    with h._get_client() as client:
-        try:
-            data = client.search("article", keyword, offset=offset, limit=limit)
-            show_search_results_unified(data, "article", json_mode)
         except DataFetchError as e:
             show_error(str(e))
             raise click.Abort() from None

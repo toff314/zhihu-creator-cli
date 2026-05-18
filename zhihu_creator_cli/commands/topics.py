@@ -1,9 +1,9 @@
-"""Topics commands: detail, unanswered."""
+"""Topics commands: detail, unanswered, essence."""
 
 import click
 
 from ..display.common import show_error
-from ..display.topics import show_topic_detail, show_topic_unanswered
+from ..display.topics import show_topic_detail, show_topic_essence, show_topic_unanswered
 from ..exceptions import DataFetchError
 from . import _helpers as h
 
@@ -47,6 +47,30 @@ def topic_unanswered(topic_id: str, offset: int, limit: int, json_mode: bool) ->
         try:
             data = client.get_topic_unanswered(topic_id, offset=offset, limit=limit)
             show_topic_unanswered(data, json_mode)
+        except DataFetchError as e:
+            show_error(str(e))
+            raise click.Abort() from None
+
+
+@topics_group.command(name="essence")
+@h.common_options
+@click.argument("topic_id")
+def topic_essence(topic_id: str, offset: int, limit: int, json_mode: bool) -> None:
+    """Get best answers/articles in a topic (话题精华内容).
+
+    Shows the top-voted answers and articles under a topic,
+    sorted by vote count. This is the most useful way to
+    explore content under a topic.
+
+    Example::
+
+        zhihu-creator topics essence 19550517 --limit 10
+        zhihu-creator topics essence 29405812 --json --limit 5
+    """
+    with h._get_client() as client:
+        try:
+            data = client.get_topic_essence(topic_id, offset=offset, limit=limit)
+            show_topic_essence(data, json_mode)
         except DataFetchError as e:
             show_error(str(e))
             raise click.Abort() from None

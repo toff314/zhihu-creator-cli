@@ -5,8 +5,6 @@ from ..config import ZHIHU_API_V4
 _SEARCH_TYPE_MAP: dict[str, str] = {
     "general": "",
     "question": "question",
-    "answer": "answer",
-    "article": "article",
     "column": "column",
     "topic": "topic",
     "people": "people",

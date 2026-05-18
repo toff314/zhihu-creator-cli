@@ -35,7 +35,7 @@ zhihu_creator_cli/
 │   ├── __init__.py
 │   ├── auth.py         # auth login/status/logout
 │   ├── creator.py      # creator group（暂无子命令）
-│   ├── search.py       # search general/question/answer/article/column/topic/people + top/preset-words
+│   ├── search.py       # search general/question/column/topic/people + top/preset-words
 │   ├── users.py        # users profile/articles/answers/questions/followers/followees/pins/...
 │   ├── questions.py    # questions recommend/search/detail/answers/invites
 │   ├── answers.py      # answers detail/comments
@@ -149,10 +149,8 @@ class ZhihuClient(SearchMixin, UsersMixin, QuestionsMixin, ...):
 | `users following-columns <url_token>` | 关注的专栏 | ✅ |
 | `users mutuals <url_token>` | 互相关注 | ✅ |
 | `hot list` | 知乎热榜 | ✅ |
-| `search general <kw>` | 综合搜索 | ✅ |
+| `search general <kw>` | 综合搜索（约20条混合） | ✅ |
 | `search questions <kw>` | 问题搜索 | ✅ |
-| `search answers <kw>` | 回答搜索 | ✅ |
-| `search articles <kw>` | 文章搜索 | ✅ |
 | `search columns <kw>` | 专栏搜索 | ✅ |
 | `search topics <kw>` | 话题搜索 | ✅ |
 | `search people <kw>` | 用户搜索 | ✅ |
@@ -168,6 +166,7 @@ class ZhihuClient(SearchMixin, UsersMixin, QuestionsMixin, ...):
 | `collections answers <id>` | 收藏夹回答 | ✅ |
 | `topics detail <id>` | 话题详情 | ✅ |
 | `topics unanswered <id>` | 话题待答问题 | ✅ |
+| `topics essence <id>` | 话题精华内容（回答+文章） | ✅ |
 | `pins detail <id>` | 想法详情 | ✅ |
 | `notifications invites` | 邀请回答通知 | ✅ |
 | `notifications messages` | 消息通知 | ✅ |

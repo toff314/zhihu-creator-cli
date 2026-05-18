@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from .common import Table, _clean_html, _json_out, _paging_total, _show_empty, console
+from .common import Table, _clean_html, _json_out, _paging_total, _show_empty, _type_label, console
 
 _SEARCH_COLUMNS = {
     "general": ["ID", "标题", "类型", "回答数", "关注者", "赞"],
     "question": ["ID", "标题", "回答数", "关注者"],
-    "answer": ["ID", "问题", "作者", "赞", "评"],
-    "article": ["ID", "标题", "作者", "赞", "评"],
     "column": ["Slug", "名称", "作者", "文章数", "关注者"],
     "topic": ["ID", "名称", "描述", "关注者"],
     "people": ["URL Token", "姓名", "签名", "回答数", "粉丝数"],
@@ -50,7 +48,7 @@ def show_search_results_unified(data: dict, kind: str, json_mode: bool = False) 
                 a = obj.get("author", {})
                 row.append(a.get("name", "-"))
             elif col == "类型":
-                row.append(obj.get("type", "-"))
+                row.append(_type_label(obj.get("type")))
             elif col == "回答数":
                 row.append(str(obj.get("answer_count", "-")))
             elif col == "关注者":
@@ -86,7 +84,8 @@ def show_top_search(data: dict, json_mode: bool = False) -> None:
     if json_mode:
         _json_out(data)
         return
-    items = data.get("data", [])
+    top_search = data.get("top_search", {})
+    items = top_search.get("words", [])
     if not items:
         _show_empty("热搜")
         return
@@ -96,8 +95,7 @@ def show_top_search(data: dict, json_mode: bool = False) -> None:
     table.add_column("类型", width=10)
     for idx, item in enumerate(items, 1):
         query = item.get("query", item.get("search_text", "-"))
-        item_type = item.get("type", "-")
-        table.add_row(str(idx), query[:40], item_type)
+        table.add_row(str(idx), query[:40], _type_label(item.get("type")))
     console.print(table)
     console.print(f"\nTotal: {len(items)} hot searches")
 
@@ -106,7 +104,8 @@ def show_preset_words(data: dict, json_mode: bool = False) -> None:
     if json_mode:
         _json_out(data)
         return
-    words = data.get("preset_words", data.get("data", []))
+    preset_words = data.get("preset_words", {})
+    words = preset_words.get("words", [])
     if not words:
         _show_empty("预设词")
         return

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .common import Table, _clean_html, _json_out, _paging_total, _show_empty, console
+from .common import Table, _clean_html, _json_out, _paging_total, _show_empty, _type_label, console
 
 
 def show_topic_detail(topic: dict, json_mode: bool = False) -> None:
@@ -41,12 +41,41 @@ def show_topic_unanswered(data: dict, json_mode: bool = False) -> None:
     table.add_column("回答数", justify="right", width=8)
     table.add_column("关注者", justify="right", width=8)
     for item in questions:
+        target = item.get("target", item)
         table.add_row(
-            str(item.get("id", "-")),
-            item.get("title", "-")[:50],
-            str(item.get("answer_count", 0)),
-            str(item.get("follower_count", 0)),
+            str(target.get("id", "-")),
+            target.get("title", "-")[:50],
+            str(target.get("answer_count", 0)),
+            str(target.get("follower_count", 0)),
         )
     console.print(table)
     paging = data.get("paging", {})
     _paging_total(len(questions), paging.get("totals", len(questions)), "questions")
+
+
+def show_topic_essence(data: dict, json_mode: bool = False) -> None:
+    if json_mode:
+        _json_out(data)
+        return
+    items = data.get("data", [])
+    if not items:
+        _show_empty("话题精华")
+        return
+    table = Table(title="话题精华内容", show_header=True, header_style="bold magenta")
+    table.add_column("类型", width=6)
+    table.add_column("ID", style="dim", no_wrap=True, min_width=22)
+    table.add_column("标题", min_width=40)
+    table.add_column("赞同", justify="right", width=6)
+    table.add_column("评论", justify="right", width=6)
+    for item in items:
+        target = item.get("target", item)
+        table.add_row(
+            _type_label(target.get("type")),
+            str(target.get("id", "-")),
+            target.get("title", "-")[:50],
+            str(target.get("voteup_count", 0)),
+            str(target.get("comment_count", 0)),
+        )
+    console.print(table)
+    paging = data.get("paging", {})
+    _paging_total(len(items), paging.get("totals", len(items)), "精华内容")

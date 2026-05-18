@@ -18,3 +18,16 @@ class TopicMixin:
             "limit": limit,
         }
         return self._get_no_xsrf(url, params=params)
+
+    def get_topic_essence(
+        self,
+        topic_id: str,
+        offset: int = 0,
+        limit: int = 20,
+    ) -> dict:
+        url = f"https://api.zhihu.com/topics/{topic_id}/best_answers"
+        params = {
+            "offset": offset,
+            "limit": limit,
+        }
+        return self._get_no_xsrf(url, params=params)
